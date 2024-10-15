@@ -3,67 +3,62 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
-from email.mime.text import MIMEText
 import os
 
 app = Flask(__name__)
 
 # إعدادات البريد الإلكتروني
-EMAIL_USER = 'smailkindle4@gmail.com'
-EMAIL_PASSWORD = 'smail123!!'
-EMAIL_RECEIVER = 'smailtaafyy55@gmail.com'
+EMAIL_ADDRESS = 'smailkindle4@gmail.com'  # استبدلها ببريدك الإلكتروني
+EMAIL_PASSWORD = 'smail123!!'     # استبدلها بكلمة مرور بريدك الإلكتروني
 
-# وظيفة إرسال البريد الإلكتروني مع المرفق
-def send_email_with_attachment(file_path, filename):
+def send_email(file_path):
+    # إعداد البريد الإلكتروني
     msg = MIMEMultipart()
-    msg['From'] = EMAIL_USER
-    msg['To'] = EMAIL_RECEIVER
-    msg['Subject'] = 'New File Uploaded'
+    msg['From'] = EMAIL_ADDRESS
+    msg['To'] = EMAIL_ADDRESS  # يمكنك تغيير هذا إلى بريد إلكتروني مختلف
+    msg['Subject'] = 'تم رفع صورة جديدة'
+    
+    # إعداد ملف الصورة كمرفق
+    attachment = MIMEBase('application', 'octet-stream')
+    with open(file_path, 'rb') as file:
+        attachment.set_payload(file.read())
+    encoders.encode_base64(attachment)
+    attachment.add_header('Content-Disposition', f'attachment; filename={os.path.basename(file_path)}')
+    msg.attach(attachment)
 
-    body = 'A new file has been uploaded.'
-    msg.attach(MIMEText(body, 'plain'))
+    # إرسال البريد الإلكتروني
+    try:
+        with smtplib.SMTP('smtp.gmail.com', 587) as server:
+            server.starttls()  # تفعيل التشفير
+            server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+            server.send_message(msg)
+            print(f'Email sent successfully with attachment {file_path}')
+    except Exception as e:
+        print(f'Failed to send email: {e}')
 
-    # إضافة المرفق
-    attachment = open(file_path, 'rb')
-    part = MIMEBase('application', 'octet-stream')
-    part.set_payload(attachment.read())
-    encoders.encode_base64(part)
-    part.add_header('Content-Disposition', f'attachment; filename= {filename}')
-    msg.attach(part)
-
-    # إعداد خادم SMTP
-    server = smtplib.SMTP('smtp.gmail.com', 587)
-    server.starttls()
-    server.login(EMAIL_USER, EMAIL_PASSWORD)
-    text = msg.as_string()
-    server.sendmail(EMAIL_USER, EMAIL_RECEIVER, text)
-    server.quit()
+@app.route('/notify', methods=['GET'])
+def notify():
+    return jsonify({'message': 'Server notified successfully!'})
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    try:
-        if 'file' not in request.files:
-            return jsonify({'error': 'No file part'}), 400
-        file = request.files['file']
-        if file.filename == '':
-            return jsonify({'error': 'No selected file'}), 400
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+    
+    # حفظ الملف مؤقتًا
+    temp_file_path = os.path.join('/tmp', file.filename)
+    file.save(temp_file_path)
 
-        # حفظ الملف مؤقتاً في مجلد محلي
-        temp_folder = 'temp_uploads'
-        os.makedirs(temp_folder, exist_ok=True)
-        file_path = os.path.join(temp_folder, file.filename)
-        file.save(file_path)
+    # إرسال البريد الإلكتروني
+    send_email(temp_file_path)
 
-        # إرسال الملف عبر البريد الإلكتروني
-        send_email_with_attachment(file_path, file.filename)
+    # حذف الملف المؤقت
+    os.remove(temp_file_path)
 
-        # حذف الملف بعد الإرسال
-        os.remove(file_path)
-
-        return jsonify({'message': 'File uploaded and sent via email successfully!'}), 200
-    except Exception as e:
-        return jsonify({'error': f'Failed to upload and send file: {str(e)}'}), 500
+    return jsonify({'message': 'File uploaded and emailed successfully!'}), 200
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
-
