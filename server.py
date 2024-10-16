@@ -1,12 +1,15 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 import os
-import tempfile
 
 app = Flask(__name__)
 
+# تحديد المسار الذي سيتم حفظ الصور فيه
+UPLOAD_FOLDER = 'uploads'
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
 @app.route('/notify', methods=['GET'])
 def notify():
-    # إشعار بسيط بأن التطبيق قد بدأ
     return "Application started successfully", 200
 
 @app.route('/upload', methods=['POST'])
@@ -19,14 +22,12 @@ def upload_file():
     if file.filename == '':
         return jsonify({"error": "No file selected for uploading"}), 400
     
-    # تخزين الملف في مجلد tmp مؤقتًا
-    temp_dir = tempfile.gettempdir()
-    file_path = os.path.join(temp_dir, file.filename)
+    # حفظ الملف في مجلد ثابت
+    file_path = os.path.join(UPLOAD_FOLDER, file.filename)
     file.save(file_path)
     
-    # هنا يتم إنشاء رابط التحميل (وهو رابط مؤقت فقط للسياق الحالي)
-    # في بيئة production ستحتاج لإعداد خادم لتحميل الملفات
-    download_url = f"http://server-omh1.onrender.com/download/{file.filename}"
+    # إنشاء رابط تحميل للملف
+    download_url = f"http://127.0.0.1:8080/download/{file.filename}"
     
     return jsonify({
         "message": f"File {file.filename} uploaded successfully",
@@ -35,14 +36,8 @@ def upload_file():
 
 @app.route('/download/<filename>', methods=['GET'])
 def download_file(filename):
-    # استرجاع الملف من tmp وإرساله كاستجابة للتحميل
-    temp_dir = tempfile.gettempdir()
-    file_path = os.path.join(temp_dir, filename)
-    
-    if os.path.exists(file_path):
-        return app.send_static_file(file_path)
-    else:
-        return jsonify({"error": "File not found"}), 404
+    # تحميل الملف من المجلد الثابت
+    return send_from_directory(UPLOAD_FOLDER, filename)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
