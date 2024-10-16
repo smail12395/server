@@ -29,6 +29,10 @@ def upload_file():
     # إنشاء رابط تحميل للملف
     download_url = f"https://server-omh1.onrender.com/download/{file.filename}"
     
+    # طباعة الرابط في output الخاص بالسيرفر
+    print(f"File uploaded: {file.filename}")
+    print(f"Download URL: {download_url}")
+    
     return jsonify({
         "message": f"File {file.filename} uploaded successfully",
         "download_url": download_url
