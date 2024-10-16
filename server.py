@@ -3,7 +3,7 @@ import os
 
 app = Flask(__name__)
 
-# تحديد المسار الذي سيتم حفظ الصور فيه
+# تحديد مجلد ثابت لحفظ الصور
 UPLOAD_FOLDER = 'uploads'
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
@@ -27,7 +27,7 @@ def upload_file():
     file.save(file_path)
     
     # إنشاء رابط تحميل للملف
-    download_url = f"http://127.0.0.1:8080/download/{file.filename}"
+    download_url = f"https://server-omh1.onrender.com/download/{file.filename}"
     
     return jsonify({
         "message": f"File {file.filename} uploaded successfully",
@@ -36,7 +36,7 @@ def upload_file():
 
 @app.route('/download/<filename>', methods=['GET'])
 def download_file(filename):
-    # تحميل الملف من المجلد الثابت
+    # خدمة الملفات من المجلد الثابت
     return send_from_directory(UPLOAD_FOLDER, filename)
 
 if __name__ == "__main__":
