@@ -1,7 +1,11 @@
 from flask import Flask, request, jsonify, send_from_directory
 import os
+import logging
 
 app = Flask(__name__)
+
+# تهيئة وحدة التسجيل (logging)
+logging.basicConfig(level=logging.INFO)
 
 # تحديد مجلد ثابت لحفظ الصور
 UPLOAD_FOLDER = 'uploads'
@@ -26,8 +30,8 @@ def upload_file():
     file_path = os.path.join(UPLOAD_FOLDER, file.filename)
     file.save(file_path)
     
-    # طباعة اسم الملف فقط في output الخاص بالسيرفر
-    print(f"Uploaded file: {file.filename}")
+    # استخدام logging لطباعة اسم الملف
+    logging.info(f"Uploaded file: {file.filename}")
     
     return jsonify({
         "message": f"File {file.filename} uploaded successfully"
