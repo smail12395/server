@@ -1,16 +1,18 @@
-from flask import Flask, request, jsonify
-import os
+from flask import Flask, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
+import os
 from datetime import datetime
 
 app = Flask(__name__)
 
-# إعداد مجلد رفع الصور
-UPLOAD_FOLDER = 'static/uploads'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# إعداد مجلد التخزين
+UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploads')
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# السماح بامتدادات الصور
+# مسموح فقط بهذه الامتدادات
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp'}
 
 def allowed_file(filename):
@@ -18,27 +20,32 @@ def allowed_file(filename):
 
 @app.route('/')
 def home():
-    return "🚀 السيرفر يعمل - Flask على Render"
+    return "✅ Flask server is running and ready to receive images."
 
 @app.route('/upload', methods=['POST'])
-def upload_image():
+def upload_file():
     if 'image' not in request.files:
-        return jsonify({"error": "الرجاء إرسال ملف صورة باسم image"}), 400
+        return jsonify({'error': 'No file part in the request'}), 400
 
-    image = request.files['image']
-    if image.filename == '':
-        return jsonify({"error": "اسم الملف فارغ"}), 400
+    file = request.files['image']
+    
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
 
-    if image and allowed_file(image.filename):
-        # تأمين الاسم + إضافة توقيت لتفادي التكرار
-        filename = secure_filename(image.filename)
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
-        final_name = f"{timestamp}_{filename}"
-        save_path = os.path.join(app.config['UPLOAD_FOLDER'], final_name)
-        image.save(save_path)
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        new_filename = f"{timestamp}_{filename}"
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], new_filename)
+        file.save(filepath)
 
-        # توليد الرابط المباشر
-        image_url = request.host_url + 'static/uploads/' + final_name
-        return jsonify({"message": "✅ تم رفع الصورة", "url": image_url}), 200
+        # توليد رابط مباشر
+        file_url = f"{request.host_url}uploads/{new_filename}"
+        return jsonify({'url': file_url}), 200
 
-    return jsonify({"error": "امتداد الملف غير مدعوم"}), 400
+    return jsonify({'error': 'File not allowed'}), 400
+
+# عرض الصور عبر رابط
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
