@@ -1,46 +1,39 @@
 from flask import Flask, request, jsonify, send_from_directory
 import os
-import logging
+from werkzeug.utils import secure_filename
+from datetime import datetime
 
 app = Flask(__name__)
 
-# تهيئة وحدة التسجيل (logging)
-logging.basicConfig(level=logging.INFO)
+# مجلد حفظ الصور
+UPLOAD_FOLDER = 'static/uploads'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# تحديد مجلد ثابت لحفظ الصور
-UPLOAD_FOLDER = 'uploads'
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
-
-@app.route('/notify', methods=['GET'])
-def notify():
-    return "Application started successfully", 200
+@app.route('/')
+def home():
+    return "Server is running..."
 
 @app.route('/upload', methods=['POST'])
-def upload_file():
-    if 'file' not in request.files:
-        return jsonify({"error": "No file part in the request"}), 400
-    
-    file = request.files['file']
-    
-    if file.filename == '':
-        return jsonify({"error": "No file selected for uploading"}), 400
-    
-    # حفظ الملف في مجلد ثابت
-    file_path = os.path.join(UPLOAD_FOLDER, file.filename)
-    file.save(file_path)
-    
-    # استخدام logging لطباعة اسم الملف
-    logging.info(f"Uploaded file: {file.filename}")
-    
-    return jsonify({
-        "message": f"File {file.filename} uploaded successfully"
-    }), 200
+def upload_image():
+    if 'image' not in request.files:
+        return jsonify({"error": "لم يتم إرسال صورة"}), 400
 
-@app.route('/download/<filename>', methods=['GET'])
-def download_file(filename):
-    # خدمة الملفات من المجلد الثابت
-    return send_from_directory(UPLOAD_FOLDER, filename)
+    image = request.files['image']
+    if image.filename == '':
+        return jsonify({"error": "اسم الملف فارغ"}), 400
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    # إنشاء اسم آمن وفريد للملف
+    filename = secure_filename(image.filename)
+    timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
+    final_name = f"{timestamp}_{filename}"
+    image_path = os.path.join(app.config['UPLOAD_FOLDER'], final_name)
+    image.save(image_path)
+
+    # رابط الوصول للصورة
+    image_url = request.host_url + 'static/uploads/' + final_name
+    return jsonify({"message": "تم الحفظ", "url": image_url}), 200
+
+# لتشغيل محليًا فقط
+# if __name__ == '__main__':
+#     app.run(debug=True)
